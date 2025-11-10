@@ -3,8 +3,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
-from .form_proyecto import ProyectosWindow
-
+from ui.form_proyecto import ProyectosWindow
+from ui.form_encargado import EncargadoWindow
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -90,7 +90,8 @@ class MainWindow(QWidget):
 
     # === Mensajes temporales ===
     def show_encargado_message(self):
-        QMessageBox.information(self, "Encargados", "Aquí irá el formulario de Encargados")
+        self.encargado_window = EncargadoWindow()
+        self.encargado_window.show()
 
     def show_proyecto_message(self):
         QMessageBox.information(self, "Proyectos", "Aquí irá el formulario de Proyectos\n(Las familias se gestionan dentro de cada proyecto)")
