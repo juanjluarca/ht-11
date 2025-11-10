@@ -94,4 +94,5 @@ class MainWindow(QWidget):
         self.encargado_window.show()
 
     def show_proyecto_message(self):
-        QMessageBox.information(self, "Proyectos", "Aquí irá el formulario de Proyectos\n(Las familias se gestionan dentro de cada proyecto)")
+        self.proyectos_window = ProyectosWindow()
+        self.proyectos_window.show()
