@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QFrame
 )
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
 
@@ -29,7 +29,7 @@ class MainWindow(QWidget):
                 border-radius: 10px;
                 padding: 12px;
                 font-size: 14px;
-                min-width: 150px;
+                min-width: 160px;
             }
 
             QPushButton:hover {
@@ -60,18 +60,15 @@ class MainWindow(QWidget):
 
         btn_encargados = QPushButton("Encargados")
         btn_proyectos = QPushButton("Proyectos")
-        btn_familias = QPushButton("Familias Beneficiadas")
 
         btn_encargados.clicked.connect(self.show_encargado_message)
         btn_proyectos.clicked.connect(self.show_proyecto_message)
-        btn_familias.clicked.connect(self.show_familia_message)
 
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(30)
+        button_layout.setSpacing(40)
         button_layout.addStretch()
         button_layout.addWidget(btn_encargados)
         button_layout.addWidget(btn_proyectos)
-        button_layout.addWidget(btn_familias)
         button_layout.addStretch()
 
         footer = QLabel("2025 Universidad Rafael Landivar – Ingeniería en Sistemas")
@@ -95,7 +92,4 @@ class MainWindow(QWidget):
         QMessageBox.information(self, "Encargados", "Aquí irá el formulario de Encargados")
 
     def show_proyecto_message(self):
-        QMessageBox.information(self, "Proyectos", "Aquí irá el formulario de Proyectos")
-
-    def show_familia_message(self):
-        QMessageBox.information(self, "Familias", "Aquí irá el formulario de Familias Beneficiadas")
+        QMessageBox.information(self, "Proyectos", "Aquí irá el formulario de Proyectos\n(Las familias se gestionan dentro de cada proyecto)")
