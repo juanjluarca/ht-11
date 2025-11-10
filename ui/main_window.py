@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from ui.form_proyecto import ProyectosWindow
-from ui.form_encargado import EncargadoWindow
+from ui.form_encargado import MainMenuEncargados
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -90,7 +90,7 @@ class MainWindow(QWidget):
 
     # === Mensajes temporales ===
     def show_encargado_message(self):
-        self.encargado_window = EncargadoWindow()
+        self.encargado_window = MainMenuEncargados()
         self.encargado_window.show()
 
     def show_proyecto_message(self):
