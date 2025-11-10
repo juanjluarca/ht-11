@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from .detalles_window import DetallesWindow
 from .nuevo_proyecto import NuevoProyectoWindow
+from .form_actualizar_proyecto import ActualizarProyectoWindow
 
 class ProyectosWindow(QWidget):
     def __init__(self):
@@ -90,12 +91,12 @@ class ProyectosWindow(QWidget):
         btn_crear = QPushButton("Crear proyecto")
         btn_crear.clicked.connect(self.show_crear)
         btn_actualizar = QPushButton("Actualizar")
-        btn_actualizar.clicked.connect(self.cargar_datos)
+        btn_actualizar.clicked.connect(self.show_update)
         btn_detalles = QPushButton("Ver Detalles")
         btn_detalles.clicked.connect(self.ver_detalles)
 
         for b in [btn_crear, btn_actualizar, btn_detalles]:
-            b.setFixedSize(150, 35)
+            b.setFixedSize(150, 45)
             btn_layout.addWidget(b)
 
         self.cargar_datos()
@@ -179,3 +180,7 @@ class ProyectosWindow(QWidget):
     def show_crear(self):
         self.crear_proyecto_window = NuevoProyectoWindow()
         self.crear_proyecto_window.show()
+
+    def show_update(self):
+        self.actualizar_proyecto = ActualizarProyectoWindow()
+        self.actualizar_proyecto.show()
