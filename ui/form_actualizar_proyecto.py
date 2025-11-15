@@ -3,12 +3,16 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox, QCheckBox, QPushButton, QFormLayout,
     QTableWidget, QTableWidgetItem, QHeaderView, QHBoxLayout, QMessageBox
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import Qt, QDate, pyqtSignal
+
+from models.projects_model import update_project, get_project_with_details
 
 
 class ActualizarProyectoWindow(QWidget):
-    def __init__(self):
+    updated = pyqtSignal()
+    def __init__(self, item_id):
         super().__init__()
+        self.item_id = item_id
         self.setWindowTitle("Actualizar Proyecto")
         self.setFixedSize(700, 600)
 
@@ -175,6 +179,50 @@ class ActualizarProyectoWindow(QWidget):
         btn_guardar.clicked.connect(self.guardar)
         layout.addWidget(btn_guardar, alignment=Qt.AlignmentFlag.AlignHCenter)
 
+        self.cargar_datos_proyecto()
+    
+    def cargar_datos_proyecto(self):
+        data = get_project_with_details(self.item_id)
+
+        if not data:
+            QMessageBox.warning(self, "Error", "No se encontraron datos del proyecto.")
+            return
+
+        try:
+            fecha_fin = QDate.fromString(data.get("fin", ""), "yyyy-MM-dd")
+            if fecha_fin.isValid():
+                self.input_fin.setDate(fecha_fin)
+        except:
+            pass
+
+        self.input_presupuesto.setValue(float(data.get("presupuesto", 0)))
+
+        self.checkbox_finalizado.setChecked(bool(data.get("finalizado", False)))
+
+        encargado = data.get("encargado", {})
+        nombre_enc = encargado.get("nombre", "")
+
+        if nombre_enc not in [self.input_enc_nombre.itemText(i) for i in range(self.input_enc_nombre.count())]:
+            self.input_enc_nombre.addItem(nombre_enc)
+
+        index = self.input_enc_nombre.findText(nombre_enc)
+        if index >= 0:
+            self.input_enc_nombre.setCurrentIndex(index)
+
+        familias = data.get("familias_beneficiadas", [])
+        self.tabla_familias.setRowCount(0)
+
+        for fam in familias:
+            row = self.tabla_familias.rowCount()
+            self.tabla_familias.insertRow(row)
+
+            dir_item = QTableWidgetItem(fam.get("direccion", ""))
+            ing_item = QTableWidgetItem(str(fam.get("ingreso", 0)))
+
+            self.tabla_familias.setItem(row, 0, dir_item)
+            self.tabla_familias.setItem(row, 1, ing_item)
+
+
     def agregar_familia(self):
         row = self.tabla_familias.rowCount()
         self.tabla_familias.insertRow(row)
@@ -192,7 +240,7 @@ class ActualizarProyectoWindow(QWidget):
         finalizado = self.checkbox_finalizado.isChecked()
 
         enc_id = "86DF9" # ejempl
-        enc_nombre = self.input_enc_nombre.text().strip()
+        enc_nombre = self.input_enc_nombre.currentText().strip()
 
         if enc_id or not enc_nombre:
             QMessageBox.warning(self, "Campos Incompletos", "Por favor llena todos los campos obligatorios.")
@@ -214,7 +262,6 @@ class ActualizarProyectoWindow(QWidget):
             })
 
         nuevo = {
-            "id": None,  
             "fin": fin,
             "presupuesto": presupuesto,
             "finalizado": finalizado,
@@ -223,5 +270,8 @@ class ActualizarProyectoWindow(QWidget):
         }
 
         # aqui se crea en la db
+        update_project(self.item_id, nuevo)
+
         QMessageBox.information(self, "Proyecto guardado", f"El proyecto fue actualizado exitosamente.")
+        self.updated.emit()
         self.close()

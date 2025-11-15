@@ -1,6 +1,8 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QHeaderView
 from PyQt6.QtCore import Qt
 
+from models.projects_model import get_project_with_details
+
 class DetallesWindow(QWidget):
     def __init__(self, proyecto_id):
         super().__init__()
@@ -41,15 +43,7 @@ class DetallesWindow(QWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        datos = {
-           "nombre": "Energía Solar Comunitaria",
-           "encargado": {"id": "E004", "nombre": "Javier Castillo"},
-                "familias_beneficiadas": [
-                    {"id": "F401", "direccion": "Santa Lucía Cotzumalguapa", "ingreso": 2600.00},
-                    {"id": "F402", "direccion": "Escuintla Centro", "ingreso": 2400.00},
-                    {"id": "F403", "direccion": "Palín, Escuintla", "ingreso": 2250.00},
-                ],
-        }
+        datos = get_project_with_details(proyecto_id)
 
         title = QLabel(f"Proyecto: {datos['nombre']}")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -57,7 +51,13 @@ class DetallesWindow(QWidget):
         layout.addWidget(title)
 
         # Encargado
-        encargado = datos["encargado"]
+        encargado = {}
+        try:
+            encargado = datos["encargado"]
+        except:
+            encargado["id"] = "N/A"
+            encargado["nombre"] = "Sin encargado"
+        
         enc_label = QLabel(f"Encargado: {encargado['nombre']} (ID: {encargado['id']})")
         enc_label.setStyleSheet("font-weight: bold;")
         layout.addWidget(enc_label)
@@ -96,7 +96,12 @@ class DetallesWindow(QWidget):
           }
       """)
 
-        familias = datos["familias_beneficiadas"]
+        familias = []
+        try:
+            familias = datos["familias_beneficiadas"]
+        except:
+            familias = []
+
         tabla.setRowCount(len(familias))
         for i, f in enumerate(familias):
             tabla.setItem(i, 0, QTableWidgetItem(str(f["id"])))
