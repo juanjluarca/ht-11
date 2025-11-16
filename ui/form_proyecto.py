@@ -7,6 +7,8 @@ from .detalles_window import DetallesWindow
 from .nuevo_proyecto import NuevoProyectoWindow
 from .form_actualizar_proyecto import ActualizarProyectoWindow
 
+from models.projects_model import get_all_projects
+
 class ProyectosWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -102,7 +104,7 @@ class ProyectosWindow(QWidget):
         self.cargar_datos()
 
     def cargar_datos(self):
-        proyectos = [
+        '''proyectos = [
             {
                 "id": 1,
                 "nombre": "Proyecto Agua Viva",
@@ -158,10 +160,12 @@ class ProyectosWindow(QWidget):
                     {"id": "F403", "direccion": "Palín, Escuintla", "ingreso": 2250.00},
                 ],
             },
-        ]
+        ]'''
+
+        proyectos = get_all_projects()
         self.tabla.setRowCount(len(proyectos))
         for row, p in enumerate(proyectos):
-            self.tabla.setItem(row, 0, QTableWidgetItem(str(p["id"])))
+            self.tabla.setItem(row, 0, QTableWidgetItem(str(p["_id"])))
             self.tabla.setItem(row, 1, QTableWidgetItem(p["nombre"]))
             self.tabla.setItem(row, 2, QTableWidgetItem(p["inicio"]))
             self.tabla.setItem(row, 3, QTableWidgetItem(p["fin"]))
@@ -170,17 +174,21 @@ class ProyectosWindow(QWidget):
 
     def ver_detalles(self):
         fila = self.tabla.currentRow()
-        if fila < 0:
-            return
+        if fila != -1:
+            proyecto_id = self.tabla.item(fila, 0).text()
+            self.detalles = DetallesWindow(proyecto_id)
+            self.detalles.show()
 
-        proyecto_id = self.tabla.item(fila, 0).text()
-        self.detalles = DetallesWindow(proyecto_id)
-        self.detalles.show()
     
     def show_crear(self):
         self.crear_proyecto_window = NuevoProyectoWindow()
+        self.crear_proyecto_window.inserted.connect(self.cargar_datos)
         self.crear_proyecto_window.show()
 
     def show_update(self):
-        self.actualizar_proyecto = ActualizarProyectoWindow()
-        self.actualizar_proyecto.show()
+        row = self.tabla.currentRow()
+        if row != -1:
+            item_id = self.tabla.item(row, 0).text()
+            self.actualizar_proyecto = ActualizarProyectoWindow(item_id)
+            self.actualizar_proyecto.updated.connect(self.cargar_datos)
+            self.actualizar_proyecto.show()

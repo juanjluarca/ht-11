@@ -3,10 +3,13 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox, QComboBox, QPushButton, QFormLayout,
     QMessageBox
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import Qt, QDate, pyqtSignal
+
+from models.projects_model import add_project
 
 
 class NuevoProyectoWindow(QWidget):
+    inserted = pyqtSignal()
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Crear Nuevo Proyecto")
@@ -145,8 +148,6 @@ class NuevoProyectoWindow(QWidget):
         btn_crear.clicked.connect(self.guardar)
         layout.addWidget(btn_crear, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-        
-
     def guardar(self):
         nombre = self.input_nombre.text().strip()
         inicio = self.input_inicio.date().toString("yyyy-MM-dd")
@@ -158,13 +159,16 @@ class NuevoProyectoWindow(QWidget):
             return
 
         nuevo = {
-            "id": None,  
             "nombre": nombre,
             "inicio": inicio,
             "fin": fin,
-            "presupuesto": presupuesto
+            "presupuesto": presupuesto,
+            "finalizado": False
         }
 
         # aqui se crea en la db
+        add_project(nuevo)
+
         QMessageBox.information(self, "Proyecto guardado", f"El proyecto '{nombre}' fue agregado exitosamente.")
+        self.inserted.emit()
         self.close()
