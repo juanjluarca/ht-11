@@ -1,31 +1,18 @@
-import json, os
-from datetime import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QHBoxLayout, QFormLayout, QLineEdit, QMessageBox, QFrame
+    QHeaderView, QHBoxLayout, QMessageBox, QFrame
 )
 from PyQt6.QtCore import Qt
-
-DATA_FILE = "encargados.json"
-
-
-def cargar_datos():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def guardar_datos(encargados):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(encargados, f, indent=4, ensure_ascii=False)
+from models.encargados_model import get_all_encargados, delete_encargado
+from .form_agregar_encargado import FormAgregarEncargado
+from .form_editar_encargado import FormEditarEncargado
 
 
 class EncargadosWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Gestión de Encargados")
-        self.setFixedSize(900, 500)
+        self.setFixedSize(1000, 600)
 
         self.setStyleSheet("""
             QWidget {
@@ -39,170 +26,204 @@ class EncargadosWindow(QWidget):
                 border-radius: 10px;
                 padding: 10px;
                 font-size: 14px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #2f2f2f;
             }
+            QPushButton:disabled {
+                background-color: #999;
+            }
             QLabel#titleLabel {
-                font-size: 20px;
+                font-size: 22px;
                 font-weight: bold;
                 color: #2b2b2b;
             }
             QTableWidget {
                 background-color: #f8f9fa;
                 gridline-color: #ccc;
+                border: 1px solid #ddd;
+                border-radius: 5px;
             }
             QHeaderView::section {
                 background-color: #444;
                 color: white;
-                padding: 4px;
+                padding: 8px;
                 border: none;
+                font-weight: bold;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #4a4a4a;
+                color: white;
             }
         """)
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
 
-        # Título
         title = QLabel("Gestión de Encargados")
         title.setObjectName("titleLabel")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(title)
 
-        # Línea separadora
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line)
 
-        # Botones
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(15)
 
-        btn_agregar = QPushButton("Agregar")
-        btn_agregar.clicked.connect(self.form_agregar)
+        self.btn_agregar = QPushButton("Agregar Encargado")
+        self.btn_agregar.clicked.connect(self.abrir_form_agregar)
+        self.btn_agregar.setFixedSize(180, 40)
 
-        btn_eliminar = QPushButton("Eliminar")
-        btn_eliminar.clicked.connect(self.form_eliminar)
+        self.btn_editar = QPushButton("Editar Encargado")
+        self.btn_editar.clicked.connect(self.abrir_form_editar)
+        self.btn_editar.setFixedSize(180, 40)
+        self.btn_editar.setEnabled(False)
 
-        btn_actualizar = QPushButton("Actualizar")
-        btn_actualizar.clicked.connect(self.cargar_tabla)
+        self.btn_eliminar = QPushButton("Eliminar Encargado")
+        self.btn_eliminar.clicked.connect(self.eliminar_encargado)
+        self.btn_eliminar.setFixedSize(180, 40)
+        self.btn_eliminar.setEnabled(False)
 
-        for b in [btn_agregar, btn_eliminar, btn_actualizar]:
-            b.setFixedSize(150, 35)
-            btn_layout.addWidget(b)
+        self.btn_actualizar = QPushButton("Actualizar")
+        self.btn_actualizar.clicked.connect(self.cargar_tabla)
+        self.btn_actualizar.setFixedSize(150, 40)
 
-        # Tabla
-        self.tabla = QTableWidget()
-        self.tabla.setColumnCount(6)
-        self.tabla.setHorizontalHeaderLabels([
-            "Nombre", "Dirección", "DPI", "Activos", "Finalizados", "Presupuesto"
-        ])
-        self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        layout.addWidget(self.tabla)
+        btn_layout.addWidget(self.btn_agregar)
+        btn_layout.addWidget(self.btn_editar)
+        btn_layout.addWidget(self.btn_eliminar)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_actualizar)
 
-        # Contenedor de formularios
-        self.form_container = QVBoxLayout()
-        layout.addLayout(self.form_container)
         layout.addLayout(btn_layout)
 
+        self.tabla = QTableWidget()
+        self.tabla.setColumnCount(7)
+        self.tabla.setHorizontalHeaderLabels([
+            "Nombre", "Dirección", "DPI", 
+            "Proyectos Activos", "Proyectos Finalizados", 
+            "Presupuesto Total (Q)", "Fecha Registro"
+        ])
+        
+        header = self.tabla.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(2, 120)  
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(3, 120)  
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(4, 140)  
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(5, 150)  
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(6, 150)  
+        
+        self.tabla.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.tabla.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.tabla.itemSelectionChanged.connect(self.on_seleccion_changed)
+        
+        layout.addWidget(self.tabla)
+
         self.cargar_tabla()
 
-    def form_agregar(self):
-        self.limpiar_formulario()
+    def abrir_form_agregar(self):
+        dialog = FormAgregarEncargado(self)
+        dialog.encargado_agregado.connect(self.cargar_tabla)
+        dialog.exec()
 
-        form = QFormLayout()
-        form.setContentsMargins(20, 10, 20, 10)
-
-        self.f_nombre = QLineEdit()
-        self.f_direccion = QLineEdit()
-        self.f_dpi = QLineEdit()
-        self.f_activos = QLineEdit()
-        self.f_finalizados = QLineEdit()
-        self.f_presupuesto = QLineEdit()
-
-        form.addRow("Nombre:", self.f_nombre)
-        form.addRow("Dirección:", self.f_direccion)
-        form.addRow("DPI:", self.f_dpi)
-        form.addRow("Proyectos activos:", self.f_activos)
-        form.addRow("Proyectos finalizados:", self.f_finalizados)
-        form.addRow("Presupuesto (Q):", self.f_presupuesto)
-
-        btn_guardar = QPushButton("Guardar")
-        btn_guardar.clicked.connect(self.guardar_encargado)
-
-        self.form_container.addLayout(form)
-        self.form_container.addWidget(btn_guardar)
-
-    def guardar_encargado(self):
-        nombre = self.f_nombre.text().strip()
-        direccion = self.f_direccion.text().strip()
-        dpi = self.f_dpi.text().strip()
-
-        if not nombre or not direccion or not dpi:
-            QMessageBox.warning(self, "Error", "Nombre, Dirección y DPI son obligatorios.")
+    def abrir_form_editar(self):
+        selected_row = self.tabla.currentRow()
+        
+        if selected_row < 0:
+            QMessageBox.warning(self, "Aviso", "Seleccione un encargado para editar.")
             return
-
-        datos = cargar_datos()
-        datos.append({
-            "nombre": nombre,
-            "direccion": direccion,
-            "dpi": dpi,
-            "proyectos_activos": self.f_activos.text() or "0",
-            "proyectos_finalizados": self.f_finalizados.text() or "0",
-            "presupuesto_total": self.f_presupuesto.text() or "0",
-            "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
-
-        guardar_datos(datos)
-        QMessageBox.information(self, "Éxito", "Encargado guardado.")
-        self.cargar_tabla()
-        self.limpiar_formulario()
-
-    def form_eliminar(self):
-        self.limpiar_formulario()
-
-        form = QFormLayout()
-        self.f_eliminar = QLineEdit()
-        form.addRow("Nombre a eliminar:", self.f_eliminar)
-
-        btn_eliminar = QPushButton("Eliminar")
-        btn_eliminar.clicked.connect(self.eliminar_encargado)
-
-        self.form_container.addLayout(form)
-        self.form_container.addWidget(btn_eliminar)
+        
+        encargado_id = self.tabla.item(selected_row, 0).data(Qt.ItemDataRole.UserRole)
+        
+        dialog = FormEditarEncargado(encargado_id, self)
+        dialog.encargado_actualizado.connect(self.cargar_tabla)
+        dialog.exec()
 
     def eliminar_encargado(self):
-        nombre = self.f_eliminar.text().strip()
-        if not nombre:
-            QMessageBox.warning(self, "Error", "Ingrese un nombre.")
+        selected_row = self.tabla.currentRow()
+        
+        if selected_row < 0:
+            QMessageBox.warning(self, "Aviso", "Seleccione un encargado para eliminar.")
             return
-
-        datos = cargar_datos()
-        nuevos = [e for e in datos if e["nombre"].lower() != nombre.lower()]
-
-        if len(nuevos) == len(datos):
-            QMessageBox.information(self, "No encontrado", "No existe ese encargado.")
-        else:
-            guardar_datos(nuevos)
-            QMessageBox.information(self, "Eliminado", "Encargado eliminado.")
-            self.cargar_tabla()
-
-        self.limpiar_formulario()
+        
+        nombre = self.tabla.item(selected_row, 0).text()
+        encargado_id = self.tabla.item(selected_row, 0).data(Qt.ItemDataRole.UserRole)
+        
+        respuesta = QMessageBox.question(
+            self,
+            "Confirmar eliminación",
+            f"¿Está seguro que desea eliminar al encargado '{nombre}'?\n\n"
+            "Esta acción no se puede deshacer.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if respuesta == QMessageBox.StandardButton.Yes:
+            try:
+                if delete_encargado(encargado_id):
+                    QMessageBox.information(self, "Éxito", "Encargado eliminado correctamente.")
+                    self.cargar_tabla()
+                else:
+                    QMessageBox.warning(self, "Error", "No se pudo eliminar el encargado.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error al eliminar el encargado:\n{str(e)}")
 
     def cargar_tabla(self):
-        datos = cargar_datos()
-        self.tabla.setRowCount(len(datos))
+        try:
+            encargados = get_all_encargados()
+            self.tabla.setRowCount(len(encargados))
 
-        for f, e in enumerate(datos):
-            self.tabla.setItem(f, 0, QTableWidgetItem(e["nombre"]))
-            self.tabla.setItem(f, 1, QTableWidgetItem(e["direccion"]))
-            self.tabla.setItem(f, 2, QTableWidgetItem(e["dpi"]))
-            self.tabla.setItem(f, 3, QTableWidgetItem(e["proyectos_activos"]))
-            self.tabla.setItem(f, 4, QTableWidgetItem(e["proyectos_finalizados"]))
-            self.tabla.setItem(f, 5, QTableWidgetItem(e["presupuesto_total"]))
+            for fila, encargado in enumerate(encargados):
+                item_nombre = QTableWidgetItem(encargado.get("nombre", ""))
+                item_nombre.setData(Qt.ItemDataRole.UserRole, str(encargado["_id"]))
+                self.tabla.setItem(fila, 0, item_nombre)
+                
+                self.tabla.setItem(fila, 1, QTableWidgetItem(encargado.get("direccion", "")))
+                
+                self.tabla.setItem(fila, 2, QTableWidgetItem(encargado.get("dpi", "")))
+                
+                activos = encargado.get("proyectos_activos", 0)
+                self.tabla.setItem(fila, 3, QTableWidgetItem(str(int(activos))))
+                
+                finalizados = encargado.get("proyectos_finalizados", 0)
+                self.tabla.setItem(fila, 4, QTableWidgetItem(str(int(finalizados))))
+                
+                presupuesto = encargado.get("presupuesto_total_manejado", 0)
+                self.tabla.setItem(fila, 5, QTableWidgetItem(f"Q {presupuesto:,.2f}"))
+                
+                fecha = encargado.get("creado_en")
+                if fecha:
+                    fecha_str = fecha.strftime("%d/%m/%Y %H:%M")
+                    self.tabla.setItem(fila, 6, QTableWidgetItem(fecha_str))
+                else:
+                    self.tabla.setItem(fila, 6, QTableWidgetItem("N/A"))
+                
+                for col in [3, 4, 5, 6]:
+                    if self.tabla.item(fila, col):
+                        self.tabla.item(fila, col).setTextAlignment(
+                            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                        )
+            
+            self.btn_editar.setEnabled(False)
+            self.btn_eliminar.setEnabled(False)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error al cargar los datos:\n{str(e)}")
 
-    def limpiar_formulario(self):
-        while self.form_container.count():
-            item = self.form_container.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+    def on_seleccion_changed(self):
+        hay_seleccion = len(self.tabla.selectedItems()) > 0
+        self.btn_editar.setEnabled(hay_seleccion)
+        self.btn_eliminar.setEnabled(hay_seleccion)
