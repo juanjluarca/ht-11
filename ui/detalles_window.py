@@ -55,10 +55,10 @@ class DetallesWindow(QWidget):
         try:
             encargado = datos["encargado"]
         except:
-            encargado["id"] = "N/A"
+            encargado["_id"] = "N/A"
             encargado["nombre"] = "Sin encargado"
         
-        enc_label = QLabel(f"Encargado: {encargado['nombre']} (ID: {encargado['id']})")
+        enc_label = QLabel(f"Encargado: {encargado['nombre']} (ID: {encargado['_id']})")
         enc_label.setStyleSheet("font-weight: bold;")
         layout.addWidget(enc_label)
 
@@ -68,8 +68,8 @@ class DetallesWindow(QWidget):
         layout.addWidget(fam_label)
 
         tabla = QTableWidget()
-        tabla.setColumnCount(3)
-        tabla.setHorizontalHeaderLabels(["ID", "Dirección", "Ingreso"])
+        tabla.setColumnCount(2)
+        tabla.setHorizontalHeaderLabels(["Dirección", "Ingreso"])
         tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         layout.addWidget(tabla)
         tabla.setStyleSheet("""
@@ -104,6 +104,5 @@ class DetallesWindow(QWidget):
 
         tabla.setRowCount(len(familias))
         for i, f in enumerate(familias):
-            tabla.setItem(i, 0, QTableWidgetItem(str(f["id"])))
-            tabla.setItem(i, 1, QTableWidgetItem(f["direccion"]))
-            tabla.setItem(i, 2, QTableWidgetItem(f"Q{f['ingreso']:.2f}"))
+            tabla.setItem(i, 0, QTableWidgetItem(f["direccion"]))
+            tabla.setItem(i, 1, QTableWidgetItem(f"Q{f['ingreso']:.2f}"))

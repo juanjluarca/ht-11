@@ -1,13 +1,13 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QHBoxLayout
+    QTableWidget, QTableWidgetItem, QHeaderView, QHBoxLayout, QMessageBox
 )
 from PyQt6.QtCore import Qt
 from .detalles_window import DetallesWindow
 from .nuevo_proyecto import NuevoProyectoWindow
 from .form_actualizar_proyecto import ActualizarProyectoWindow
 
-from models.projects_model import get_all_projects
+from models.projects_model import get_all_projects, get_project_with_details, delete_project
 
 class ProyectosWindow(QWidget):
     def __init__(self):
@@ -92,12 +92,14 @@ class ProyectosWindow(QWidget):
 
         btn_crear = QPushButton("Crear proyecto")
         btn_crear.clicked.connect(self.show_crear)
-        btn_actualizar = QPushButton("Actualizar")
+        btn_actualizar = QPushButton("Actualizar Proyecto")
         btn_actualizar.clicked.connect(self.show_update)
+        btn_delete = QPushButton("Eliminar Proyecto")
+        btn_delete.clicked.connect(self.delete_project_id)
         btn_detalles = QPushButton("Ver Detalles")
         btn_detalles.clicked.connect(self.ver_detalles)
 
-        for b in [btn_crear, btn_actualizar, btn_detalles]:
+        for b in [btn_crear, btn_actualizar, btn_delete, btn_detalles]:
             b.setFixedSize(150, 45)
             btn_layout.addWidget(b)
 
@@ -174,10 +176,13 @@ class ProyectosWindow(QWidget):
 
     def ver_detalles(self):
         fila = self.tabla.currentRow()
-        if fila != -1:
+        if fila >= 0:
             proyecto_id = self.tabla.item(fila, 0).text()
             self.detalles = DetallesWindow(proyecto_id)
             self.detalles.show()
+        else:
+            QMessageBox.warning(self, "Seleccione un proyecto", f"Debe seleccionar un proyecto.")
+
 
     
     def show_crear(self):
@@ -187,8 +192,25 @@ class ProyectosWindow(QWidget):
 
     def show_update(self):
         row = self.tabla.currentRow()
-        if row != -1:
+        if row >= 0:
             item_id = self.tabla.item(row, 0).text()
+            proyecto_data = get_project_with_details(item_id)
+            if proyecto_data["finalizado"]:
+                QMessageBox.warning(self, "Proyecto ya finalizado", f"No es posible editar proyectos finalizados.")
+                return
+
             self.actualizar_proyecto = ActualizarProyectoWindow(item_id)
             self.actualizar_proyecto.updated.connect(self.cargar_datos)
             self.actualizar_proyecto.show()
+        else:
+            QMessageBox.warning(self, "Seleccione un proyecto", f"Debe seleccionar un proyecto.")
+    
+    def delete_project_id(self):
+        fila = self.tabla.currentRow()
+        if fila >= 0:
+            proyecto_id = self.tabla.item(fila, 0).text()
+            delete_project(proyecto_id)
+            QMessageBox.information(self, "Proyecto eliminado", f"Proyecto eliminado correctamente.")
+            self.cargar_datos()
+        else:
+            QMessageBox.warning(self, "Seleccione un proyecto", f"Debe seleccionar un proyecto.")
