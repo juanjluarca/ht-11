@@ -51,10 +51,6 @@ class MainWindow(QWidget):
         title.setObjectName("titleLabel")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        subtitle = QLabel("Facultad de Ingeniería – Base de Datos II")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("color: #555; font-size: 12px;")
-
         line = QFrame()
         line.setObjectName("line")
         line.setFrameShape(QFrame.Shape.HLine)
@@ -73,19 +69,13 @@ class MainWindow(QWidget):
         button_layout.addWidget(btn_proyectos)
         button_layout.addStretch()
 
-        footer = QLabel("2025 Universidad Rafael Landivar – Ingeniería en Sistemas")
-        footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        footer.setStyleSheet("color: #666; font-size: 11px; margin-top: 40px;")
-
         layout = QVBoxLayout()
         layout.setSpacing(15)
         layout.addWidget(title)
-        layout.addWidget(subtitle)
         layout.addWidget(line)
         layout.addStretch()
         layout.addLayout(button_layout)
         layout.addStretch()
-        layout.addWidget(footer)
 
         self.setLayout(layout)
 
