@@ -205,12 +205,37 @@ class ProyectosWindow(QWidget):
         else:
             QMessageBox.warning(self, "Seleccione un proyecto", f"Debe seleccionar un proyecto.")
     
+
     def delete_project_id(self):
         fila = self.tabla.currentRow()
-        if fila >= 0:
-            proyecto_id = self.tabla.item(fila, 0).text()
+
+        if fila < 0:
+            QMessageBox.warning(self, "Seleccione un proyecto", "Debe seleccionar un proyecto.")
+            return
+
+        proyecto_id = self.tabla.item(fila, 0).text()
+        nombre = self.tabla.item(fila, 1).text()
+
+        respuesta = QMessageBox.question(
+            self,
+            "Confirmar eliminación",
+            f"¿Está seguro que desea eliminar el proyecto:\n\n"
+            f"'{nombre}'\n\n"
+            "Esta acción no se puede deshacer.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+        try:
             delete_project(proyecto_id)
-            QMessageBox.information(self, "Proyecto eliminado", f"Proyecto eliminado correctamente.")
+            QMessageBox.information(
+                self,
+                "Proyecto eliminado",
+                "El proyecto ha sido eliminado correctamente."
+            )
             self.cargar_datos()
-        else:
-            QMessageBox.warning(self, "Seleccione un proyecto", f"Debe seleccionar un proyecto.")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo eliminar el proyecto:\n{str(e)}")
