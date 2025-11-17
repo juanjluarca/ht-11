@@ -284,32 +284,33 @@ class ActualizarProyectoWindow(QWidget):
         update_project(self.item_id, nuevo)
 
         # seccion para actualizar datos del encargado
-        proyectos_activos = full_enc["proyectos_activos"]
-        proyectos_finalizados = full_enc["proyectos_finalizados"]
-        presupuesto_total = full_enc["presupuesto_total_manejado"]
+        if full_enc:
+            proyectos_activos = full_enc["proyectos_activos"]
+            proyectos_finalizados = full_enc["proyectos_finalizados"]
+            presupuesto_total = full_enc["presupuesto_total_manejado"]
 
-        resta_presupuesto = presupuesto - data_proyecto["presupuesto"]
+            resta_presupuesto = presupuesto - data_proyecto["presupuesto"]
 
-        encargado_cambiado = info_completa and (str(data_proyecto["encargado"]["_id"]) != enc_id)
-        cambiado_o_nuevo = not info_completa or encargado_cambiado
-        if cambiado_o_nuevo:
-            presupuesto_total += presupuesto
-        else:
-            presupuesto_total += resta_presupuesto
+            encargado_cambiado = info_completa and (str(data_proyecto["encargado"]["_id"]) != enc_id)
+            cambiado_o_nuevo = not info_completa or encargado_cambiado
+            if cambiado_o_nuevo:
+                presupuesto_total += presupuesto
+            else:
+                presupuesto_total += resta_presupuesto
 
-        if not finalizado and cambiado_o_nuevo:
-            proyectos_activos += 1
+            if not finalizado and cambiado_o_nuevo:
+                proyectos_activos += 1
 
-        if finalizado and cambiado_o_nuevo:
-            proyectos_finalizados += 1
-
-        if not cambiado_o_nuevo and finalizado:
-            if not data_proyecto["finalizado"]:
-                proyectos_activos -= 1
+            if finalizado and cambiado_o_nuevo:
                 proyectos_finalizados += 1
 
+            if not cambiado_o_nuevo and finalizado:
+                if not data_proyecto["finalizado"]:
+                    proyectos_activos -= 1
+                    proyectos_finalizados += 1
 
-        update_encargado_stats(enc_id, proyectos_activos, proyectos_finalizados, presupuesto_total)
+
+            update_encargado_stats(enc_id, proyectos_activos, proyectos_finalizados, presupuesto_total)
 
         QMessageBox.information(self, "Proyecto guardado", f"El proyecto fue actualizado exitosamente.")
         self.updated.emit()
