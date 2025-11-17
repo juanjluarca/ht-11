@@ -21,3 +21,6 @@ def update_project(project_id, data):
 
 def get_project_with_details(project_id):
   return proyectos.find_one({"_id": ObjectId(project_id)})
+
+def delete_project(project_id):
+  proyectos.delete_one({"_id": ObjectId(project_id)})

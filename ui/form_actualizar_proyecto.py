@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QDate, pyqtSignal
 
 from models.projects_model import update_project, get_project_with_details
+from models.encargados_model import get_all_encargados, update_encargado_stats
+from bson import ObjectId
 
 
 class ActualizarProyectoWindow(QWidget):
@@ -15,6 +17,7 @@ class ActualizarProyectoWindow(QWidget):
         self.item_id = item_id
         self.setWindowTitle("Actualizar Proyecto")
         self.setFixedSize(700, 600)
+        self.encargados = get_all_encargados()
 
         self.setStyleSheet("""
             QWidget {
@@ -133,9 +136,8 @@ class ActualizarProyectoWindow(QWidget):
         layout.addWidget(enc_label)
 
         self.input_enc_nombre = QComboBox()
-        self.input_enc_nombre.addItem("Option 1")
-        self.input_enc_nombre.addItem("Option 2")
-        self.input_enc_nombre.addItem("Option 3")
+        for enc in self.encargados:
+            self.input_enc_nombre.addItem(enc["nombre"])
         self.input_enc_nombre.setStyleSheet("font-weight: bold; margin-top: 10px;")
         layout.addWidget(self.input_enc_nombre)
         
@@ -179,6 +181,7 @@ class ActualizarProyectoWindow(QWidget):
         btn_guardar.clicked.connect(self.guardar)
         layout.addWidget(btn_guardar, alignment=Qt.AlignmentFlag.AlignHCenter)
 
+        
         self.cargar_datos_proyecto()
     
     def cargar_datos_proyecto(self):
@@ -235,16 +238,20 @@ class ActualizarProyectoWindow(QWidget):
             self.tabla_familias.removeRow(row)
 
     def guardar(self):
+        data_proyecto = get_project_with_details(self.item_id)
+
         fin = self.input_fin.date().toString("yyyy-MM-dd")
         presupuesto = float(self.input_presupuesto.value())
         finalizado = self.checkbox_finalizado.isChecked()
 
-        enc_id = "86DF9" # ejempl
+        enc_list_index = self.input_enc_nombre.currentIndex()
         enc_nombre = self.input_enc_nombre.currentText().strip()
 
-        if enc_id or not enc_nombre:
-            QMessageBox.warning(self, "Campos Incompletos", "Por favor llena todos los campos obligatorios.")
-            return
+        full_enc = None
+        enc_id = None
+        if not enc_nombre == "":
+            full_enc = self.encargados[enc_list_index]
+            enc_id = str(full_enc.get("_id", None))
 
         familias = []
         for row in range(self.tabla_familias.rowCount()):
@@ -265,12 +272,44 @@ class ActualizarProyectoWindow(QWidget):
             "fin": fin,
             "presupuesto": presupuesto,
             "finalizado": finalizado,
-            "encargado": {"nombre": enc_nombre},
             "familias_beneficiadas": familias
         }
 
+        if full_enc and enc_id:
+            nuevo["encargado"] = {"_id": ObjectId(enc_id), "nombre": enc_nombre}
+
+        info_completa = "encargado" in data_proyecto
+
         # aqui se crea en la db
         update_project(self.item_id, nuevo)
+
+        # seccion para actualizar datos del encargado
+        proyectos_activos = full_enc["proyectos_activos"]
+        proyectos_finalizados = full_enc["proyectos_finalizados"]
+        presupuesto_total = full_enc["presupuesto_total_manejado"]
+
+        resta_presupuesto = presupuesto - data_proyecto["presupuesto"]
+
+        encargado_cambiado = info_completa and (str(data_proyecto["encargado"]["_id"]) != enc_id)
+        cambiado_o_nuevo = not info_completa or encargado_cambiado
+        if cambiado_o_nuevo:
+            presupuesto_total += presupuesto
+        else:
+            presupuesto_total += resta_presupuesto
+
+        if not finalizado and cambiado_o_nuevo:
+            proyectos_activos += 1
+
+        if finalizado and cambiado_o_nuevo:
+            proyectos_finalizados += 1
+
+        if not cambiado_o_nuevo and finalizado:
+            if not data_proyecto["finalizado"]:
+                proyectos_activos -= 1
+                proyectos_finalizados += 1
+
+
+        update_encargado_stats(enc_id, proyectos_activos, proyectos_finalizados, presupuesto_total)
 
         QMessageBox.information(self, "Proyecto guardado", f"El proyecto fue actualizado exitosamente.")
         self.updated.emit()
