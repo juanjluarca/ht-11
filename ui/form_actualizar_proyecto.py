@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QDate, pyqtSignal
 
 from models.projects_model import update_project, get_project_with_details
-from models.encargados_model import get_all_encargados, update_encargado_stats
+from models.encargados_model import get_all_encargados, get_encargado_by_id, update_encargado_stats
 from bson import ObjectId
 
 
@@ -18,6 +18,7 @@ class ActualizarProyectoWindow(QWidget):
         self.setWindowTitle("Actualizar Proyecto")
         self.setFixedSize(700, 600)
         self.encargados = get_all_encargados()
+        self.proyecto_original = None
 
         self.setStyleSheet("""
             QWidget {
@@ -49,11 +50,10 @@ class ActualizarProyectoWindow(QWidget):
                 background-color: #a0a0a0;
                 max-height: 2px;
             }
-                           
-             QTableWidget {
-              background-color: #f8f9fa;
-              gridline-color: #ccc;
-              selection-background-color: #d0d0d0; 
+            QTableWidget {
+                background-color: #f8f9fa;
+                gridline-color: #ccc;
+                selection-background-color: #d0d0d0; 
             }
 
             QHeaderView::section {
@@ -81,22 +81,16 @@ class ActualizarProyectoWindow(QWidget):
             }
 
             QCheckBox::indicator:checked {
-                background-color: #4CAF50; /* Green background when checked */
+                background-color: #4CAF50;
                 border-color: #2e8b57;
-                image: url(:/icons/checked_icon.png); /* Optional: use an icon */
             }
 
             QCheckBox::indicator:unchecked:hover {
-                border-color: #888; /* Darker border on hover when unchecked */
+                border-color: #888;
             }
 
             QCheckBox::indicator:checked:hover {
-                background-color: #66BB6A; /* Lighter green on hover when checked */
-            }
-
-            QCheckBox::indicator:indeterminate {
-                background-color: #FFA500; /* Orange background for indeterminate state */
-                border-color: #CD853F;
+                background-color: #66BB6A;
             }
 
             QCheckBox::indicator:disabled {
@@ -136,8 +130,9 @@ class ActualizarProyectoWindow(QWidget):
         layout.addWidget(enc_label)
 
         self.input_enc_nombre = QComboBox()
+        self.input_enc_nombre.addItem("-- Sin encargado --", None)
         for enc in self.encargados:
-            self.input_enc_nombre.addItem(enc["nombre"])
+            self.input_enc_nombre.addItem(enc["nombre"], str(enc["_id"]))
         self.input_enc_nombre.setStyleSheet("font-weight: bold; margin-top: 10px;")
         layout.addWidget(self.input_enc_nombre)
         
@@ -180,8 +175,6 @@ class ActualizarProyectoWindow(QWidget):
         """)
         btn_guardar.clicked.connect(self.guardar)
         layout.addWidget(btn_guardar, alignment=Qt.AlignmentFlag.AlignHCenter)
-
-        
         self.cargar_datos_proyecto()
     
     def cargar_datos_proyecto(self):
@@ -191,6 +184,8 @@ class ActualizarProyectoWindow(QWidget):
             QMessageBox.warning(self, "Error", "No se encontraron datos del proyecto.")
             return
 
+        self.proyecto_original = data
+
         try:
             fecha_fin = QDate.fromString(data.get("fin", ""), "yyyy-MM-dd")
             if fecha_fin.isValid():
@@ -199,18 +194,14 @@ class ActualizarProyectoWindow(QWidget):
             pass
 
         self.input_presupuesto.setValue(float(data.get("presupuesto", 0)))
-
         self.checkbox_finalizado.setChecked(bool(data.get("finalizado", False)))
 
         encargado = data.get("encargado", {})
-        nombre_enc = encargado.get("nombre", "")
-
-        if nombre_enc not in [self.input_enc_nombre.itemText(i) for i in range(self.input_enc_nombre.count())]:
-            self.input_enc_nombre.addItem(nombre_enc)
-
-        index = self.input_enc_nombre.findText(nombre_enc)
-        if index >= 0:
-            self.input_enc_nombre.setCurrentIndex(index)
+        if encargado and "_id" in encargado:
+            enc_id = str(encargado["_id"])
+            index = self.input_enc_nombre.findData(enc_id)
+            if index >= 0:
+                self.input_enc_nombre.setCurrentIndex(index)
 
         familias = data.get("familias_beneficiadas", [])
         self.tabla_familias.setRowCount(0)
@@ -225,7 +216,6 @@ class ActualizarProyectoWindow(QWidget):
             self.tabla_familias.setItem(row, 0, dir_item)
             self.tabla_familias.setItem(row, 1, ing_item)
 
-
     def agregar_familia(self):
         row = self.tabla_familias.rowCount()
         self.tabla_familias.insertRow(row)
@@ -238,20 +228,15 @@ class ActualizarProyectoWindow(QWidget):
             self.tabla_familias.removeRow(row)
 
     def guardar(self):
-        data_proyecto = get_project_with_details(self.item_id)
-
         fin = self.input_fin.date().toString("yyyy-MM-dd")
-        presupuesto = float(self.input_presupuesto.value())
-        finalizado = self.checkbox_finalizado.isChecked()
+        presupuesto_nuevo = float(self.input_presupuesto.value())
+        finalizado_nuevo = self.checkbox_finalizado.isChecked()
+        encargado_nuevo_id = self.input_enc_nombre.currentData()
 
-        enc_list_index = self.input_enc_nombre.currentIndex()
-        enc_nombre = self.input_enc_nombre.currentText().strip()
-
-        full_enc = None
-        enc_id = None
-        if not enc_nombre == "":
-            full_enc = self.encargados[enc_list_index]
-            enc_id = str(full_enc.get("_id", None))
+        presupuesto_original = float(self.proyecto_original.get("presupuesto", 0))
+        finalizado_original = bool(self.proyecto_original.get("finalizado", False))
+        encargado_original = self.proyecto_original.get("encargado", {})
+        encargado_original_id = str(encargado_original["_id"]) if encargado_original and "_id" in encargado_original else None
 
         familias = []
         for row in range(self.tabla_familias.rowCount()):
@@ -268,50 +253,119 @@ class ActualizarProyectoWindow(QWidget):
                 "ingreso": ingreso
             })
 
-        nuevo = {
+        update_data = {
             "fin": fin,
-            "presupuesto": presupuesto,
-            "finalizado": finalizado,
+            "presupuesto": presupuesto_nuevo,
+            "finalizado": finalizado_nuevo,
             "familias_beneficiadas": familias
         }
 
-        if full_enc and enc_id:
-            nuevo["encargado"] = {"_id": ObjectId(enc_id), "nombre": enc_nombre}
+        if encargado_nuevo_id:
+            update_data["encargado"] = {
+                "_id": ObjectId(encargado_nuevo_id),
+                "nombre": self.input_enc_nombre.currentText()
+            }
+        else:
+            update_data["encargado"] = None
 
-        info_completa = "encargado" in data_proyecto
+        
+        if encargado_original_id != encargado_nuevo_id:
+            
+            if encargado_original_id:
+                enc_anterior = get_encargado_by_id(encargado_original_id)
+                if enc_anterior:
+                    activos_ant = enc_anterior.get("proyectos_activos", 0)
+                    finalizados_ant = enc_anterior.get("proyectos_finalizados", 0)
+                    presupuesto_ant = enc_anterior.get("presupuesto_total_manejado", 0)
+                    
+                    if finalizado_original:
+                        finalizados_ant = max(0, finalizados_ant - 1)
+                    else:
+                        activos_ant = max(0, activos_ant - 1)
+                    
+                    presupuesto_ant = max(0, presupuesto_ant - presupuesto_original)
+                    
+                    update_encargado_stats(
+                        encargado_original_id,
+                        activos_ant,
+                        finalizados_ant,
+                        presupuesto_ant
+                    )
+            
+            if encargado_nuevo_id:
+                enc_nuevo = get_encargado_by_id(encargado_nuevo_id)
+                if enc_nuevo:
+                    activos_nuevo = enc_nuevo.get("proyectos_activos", 0)
+                    finalizados_nuevo = enc_nuevo.get("proyectos_finalizados", 0)
+                    presupuesto_nuevo_enc = enc_nuevo.get("presupuesto_total_manejado", 0)
+                    
+                    if finalizado_nuevo:
+                        finalizados_nuevo += 1
+                    else:
+                        activos_nuevo += 1
+                    
+                    presupuesto_nuevo_enc += presupuesto_nuevo
+                    
+                    update_encargado_stats(
+                        encargado_nuevo_id,
+                        activos_nuevo,
+                        finalizados_nuevo,
+                        presupuesto_nuevo_enc
+                    )
+        
+        elif encargado_original_id and encargado_original_id == encargado_nuevo_id:
+            enc = get_encargado_by_id(encargado_original_id)
+            if enc:
+                activos = enc.get("proyectos_activos", 0)
+                finalizados = enc.get("proyectos_finalizados", 0)
+                presupuesto_enc = enc.get("presupuesto_total_manejado", 0)
+                
+                if finalizado_original != finalizado_nuevo:
+                    if finalizado_nuevo:
+                        activos = max(0, activos - 1)
+                        finalizados += 1
+                    else:
+                        finalizados = max(0, finalizados - 1)
+                        activos += 1
+                
+                diferencia_presupuesto = presupuesto_nuevo - presupuesto_original
+                presupuesto_enc += diferencia_presupuesto
+                presupuesto_enc = max(0, presupuesto_enc)
+                
+                update_encargado_stats(
+                    encargado_original_id,
+                    activos,
+                    finalizados,
+                    presupuesto_enc
+                )
+        
+        elif not encargado_original_id and encargado_nuevo_id:
+            enc_nuevo = get_encargado_by_id(encargado_nuevo_id)
+            if enc_nuevo:
+                activos_nuevo = enc_nuevo.get("proyectos_activos", 0)
+                finalizados_nuevo = enc_nuevo.get("proyectos_finalizados", 0)
+                presupuesto_nuevo_enc = enc_nuevo.get("presupuesto_total_manejado", 0)
+                
+                if finalizado_nuevo:
+                    finalizados_nuevo += 1
+                else:
+                    activos_nuevo += 1
+                
+                presupuesto_nuevo_enc += presupuesto_nuevo
+                
+                update_encargado_stats(
+                    encargado_nuevo_id,
+                    activos_nuevo,
+                    finalizados_nuevo,
+                    presupuesto_nuevo_enc
+                )
 
-        # aqui se crea en la db
-        update_project(self.item_id, nuevo)
+        update_project(self.item_id, update_data)
 
-        # seccion para actualizar datos del encargado
-        if full_enc:
-            proyectos_activos = full_enc["proyectos_activos"]
-            proyectos_finalizados = full_enc["proyectos_finalizados"]
-            presupuesto_total = full_enc["presupuesto_total_manejado"]
-
-            resta_presupuesto = presupuesto - data_proyecto["presupuesto"]
-
-            encargado_cambiado = info_completa and (str(data_proyecto["encargado"]["_id"]) != enc_id)
-            cambiado_o_nuevo = not info_completa or encargado_cambiado
-            if cambiado_o_nuevo:
-                presupuesto_total += presupuesto
-            else:
-                presupuesto_total += resta_presupuesto
-
-            if not finalizado and cambiado_o_nuevo:
-                proyectos_activos += 1
-
-            if finalizado and cambiado_o_nuevo:
-                proyectos_finalizados += 1
-
-            if not cambiado_o_nuevo and finalizado:
-                if not data_proyecto["finalizado"]:
-                    proyectos_activos -= 1
-                    proyectos_finalizados += 1
-
-
-            update_encargado_stats(enc_id, proyectos_activos, proyectos_finalizados, presupuesto_total)
-
-        QMessageBox.information(self, "Proyecto guardado", f"El proyecto fue actualizado exitosamente.")
+        QMessageBox.information(
+            self, 
+            "Proyecto guardado", 
+            "El proyecto fue actualizado exitosamente."
+        )
         self.updated.emit()
         self.close()
